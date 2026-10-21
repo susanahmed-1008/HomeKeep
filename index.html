@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homekeep</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow ledger column. Header + tabs, a summary band, then rows ordered by date. Forms live in their own tab. */
+:root{
+  --bg:#ECF0F3; --surface:#FFFFFF; --ink:#13212B; --muted:#586A77; --line:#D5DDE3;
+  --accent:#0C6B5D; --accent-ink:#FFFFFF; --accent-soft:#DDF0EC;
+  --late:#B3261E; --late-soft:#FBE4E2; --soon:#8F4F00; --soon-soft:#FCEBD0;
+  --focus:#1B5FD1;
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E161B; --surface:#17232A; --ink:#E5EEF2; --muted:#9AAEBA; --line:#2A3A44;
+    --accent:#4CC2AC; --accent-ink:#06211C; --accent-soft:#183A35;
+    --late:#FF8A80; --late-soft:#3F1C1A; --soon:#F2B35E; --soon-soft:#40300F;
+    --focus:#7FB0FF; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E161B; --surface:#17232A; --ink:#E5EEF2; --muted:#9AAEBA; --line:#2A3A44;
+  --accent:#4CC2AC; --accent-ink:#06211C; --accent-soft:#183A35;
+  --late:#FF8A80; --late-soft:#3F1C1A; --soon:#F2B35E; --soon-soft:#40300F;
+  --focus:#7FB0FF; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 56px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.brand h1{font-size:30px;line-height:1.1}
+.brand p{margin:4px 0 0;color:var(--muted);max-width:46ch}
+.sync{font-size:12.5px;color:var(--muted);font-family:var(--f-mono)}
+
+nav{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+nav button{appearance:none;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);
+  font:500 15px var(--f-body);padding:10px 12px;cursor:pointer;white-space:nowrap;margin-bottom:-1px}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav button .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-left:6px}
+
+.band{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.band>div{padding:14px 16px;min-width:0}
+.band>div+div{border-left:1px solid var(--line)}
+.band .k{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.band .v{font:600 22px var(--f-display);margin-top:2px}
+.band .v small{font:400 13px var(--f-body);color:var(--muted)}
+.band .v.late{color:var(--late)}
+
+.notice{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--accent-soft);
+  border-radius:10px;padding:10px 14px;font-size:14px}
+
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.sec-h h2{font-size:18px}
+.sec-h span{color:var(--muted);font-size:13px}
+
+ul.rows{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;grid-template-areas:"mark main when" ". acts acts";gap:6px 14px;padding:14px 16px;align-items:center}
+.row+.row{border-top:1px solid var(--line)}
+.mark{grid-area:mark;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.main{grid-area:main;min-width:0}
+.title{font-weight:600;overflow-wrap:anywhere}
+.title .mono{font-weight:400;font-size:12.5px;color:var(--muted);margin-left:6px}
+.sub{color:var(--muted);font-size:13.5px;overflow-wrap:anywhere}
+.when{grid-area:when;display:flex;flex-direction:column;align-items:flex-end;gap:3px;text-align:right}
+.when .date{font-size:12.5px;color:var(--muted)}
+.pill{display:inline-block;font-size:12.5px;font-weight:600;padding:2px 9px;border-radius:99px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.pill.late{background:var(--late-soft);color:var(--late)}
+.pill.soon{background:var(--soon-soft);color:var(--soon)}
+.pill.none{background:var(--bg);color:var(--muted)}
+.acts{grid-area:acts;display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+
+.btn,button.btn{appearance:none;font:500 13.5px var(--f-body);padding:7px 12px;border-radius:8px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--late)}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.panel h2{font-size:18px}
+.panel p.hint{margin:0;color:var(--muted);font-size:13.5px}
+.scan{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.scan input[type=file]{font:14px var(--f-body);max-width:100%;min-width:0}
+.thumb{max-width:140px;max-height:140px;border-radius:8px;border:1px solid var(--line);object-fit:cover}
+.status{font-size:13.5px;color:var(--muted);min-height:1.4em}
+.status.err{color:var(--late)}
+
+form{display:flex;flex-direction:column;gap:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;align-self:flex-start}
+.seg label{padding:7px 14px;cursor:pointer;font-weight:500;font-size:14px;color:var(--muted)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg input:checked+span{color:var(--accent-ink)}
+.seg label:has(input:checked){background:var(--accent);color:var(--accent-ink)}
+.seg label:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:-2px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+.grid .full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12.5px;font-weight:500;color:var(--muted)}
+.field input,.field select{font:15px var(--f-body);padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);min-width:0;width:100%}
+.field small{color:var(--muted);font-size:12px}
+.form-acts{display:flex;gap:8px;flex-wrap:wrap}
+.foot{color:var(--muted);font-size:12.5px}
+
+@media (max-width:640px){
+  .row{grid-template-columns:40px minmax(0,1fr);grid-template-areas:"mark main" "mark when" ". acts"}
+  .when{flex-direction:row;align-items:center;justify-content:flex-start;gap:10px;text-align:left}
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .band .v{font-size:18px}
+  .band>div{padding:12px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Homekeep</h1>
+      <p>Service dates, warranties and renewals for your devices and subscriptions, with a link to the maker's own site for each.</p>
+    </div>
+    <div class="sync" id="sync" aria-live="polite">Saved in this browser</div>
+  </header>
+
+  <nav role="tablist" aria-label="Sections">
+    <button role="tab" id="t-overview" data-tab="overview" aria-selected="true">Overview</button>
+    <button role="tab" id="t-devices" data-tab="devices" aria-selected="false">Devices<span class="n" id="n-devices"></span></button>
+    <button role="tab" id="t-subs" data-tab="subs" aria-selected="false">Subscriptions<span class="n" id="n-subs"></span></button>
+    <button role="tab" id="t-add" data-tab="add" aria-selected="false">Add or scan a bill</button>
+  </nav>
+
+  <div id="notice" class="notice" hidden>
+    <span>These are example entries so you can see how it works. Dates and models are made up.</span>
+    <button class="btn" id="clearExamples" type="button">Remove examples</button>
+  </div>
+
+  <main id="view"></main>
+
+  <section id="v-add" hidden>
+    <div class="panel" style="margin-bottom:16px">
+      <h2>Scan a bill</h2>
+      <p class="hint">Upload a photo or screenshot of a purchase bill or subscription receipt. Claude reads the product, brand, model number, dates and price, then fills the form below for you to check.</p>
+      <div class="scan">
+        <input type="file" id="bill" accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Bill photo or screenshot">
+        <button class="btn primary" id="readBill" type="button" disabled>Read bill</button>
+        <button class="btn" id="stopBill" type="button" hidden>Stop</button>
+        <img id="thumb" class="thumb" alt="Selected bill" hidden>
+      </div>
+      <div class="status" id="scanStatus" aria-live="polite">Connecting…</div>
+    </div>
+
+    <div class="panel">
+      <h2 id="formTitle">Add an item</h2>
+      <form id="itemForm" novalidate>
+        <div class="seg" role="radiogroup" aria-label="Type">
+          <label><input type="radio" name="type" id="type-device" value="device" checked><span>Device</span></label>
+          <label><input type="radio" name="type" id="type-sub" value="subscription"><span>Subscription</span></label>
+        </div>
+        <div class="grid">
+          <div class="field"><label for="fName" id="lName">Product name</label><input id="fName" autocomplete="off" placeholder="55 inch 4K TV"></div>
+          <div class="field"><label for="fBrand" id="lBrand">Brand</label><input id="fBrand" autocomplete="off" placeholder="Samsung"></div>
+          <div class="field" data-for="device"><label for="fModel">Model number</label><input id="fModel" class="mono" autocomplete="off" placeholder="As printed on the bill"></div>
+          <div class="field" data-for="device"><label for="fSerial">Serial number</label><input id="fSerial" class="mono" autocomplete="off"></div>
+          <div class="field" data-for="device"><label for="fPurchase">Purchase date</label><input id="fPurchase" type="date"></div>
+          <div class="field" data-for="device"><label for="fWarranty">Warranty (months)</label><input id="fWarranty" type="number" min="0" step="1" placeholder="12"></div>
+          <div class="field" data-for="device"><label for="fInterval">Service every (months)</label><input id="fInterval" type="number" min="0" step="1" value="12"></div>
+          <div class="field" data-for="device"><label for="fLast">Last serviced</label><input id="fLast" type="date"></div>
+          <div class="field" data-for="subscription"><label for="fPlan">Plan</label><input id="fPlan" autocomplete="off" placeholder="Premium"></div>
+          <div class="field" data-for="subscription"><label for="fCycle">Billed</label>
+            <select id="fCycle"><option value="monthly">Monthly</option><option value="quarterly">Every 3 months</option><option value="yearly">Yearly</option></select></div>
+          <div class="field" data-for="subscription"><label for="fRenewal">Next renewal date</label><input id="fRenewal" type="date"></div>
+          <div class="field"><label for="fPrice" id="lPrice">Price paid (₹)</label><input id="fPrice" type="number" min="0" step="any"></div>
+          <div class="field full"><label for="fLink">Official link (optional)</label>
+            <input id="fLink" type="url" class="mono" autocomplete="off" placeholder="https://…">
+            <small>Leave blank to use the maker's site we already know. Paste your own https link to override it.</small></div>
+        </div>
+        <div class="status err" id="formErr" aria-live="polite"></div>
+        <div class="form-acts">
+          <button class="btn primary" type="submit" id="saveBtn">Save item</button>
+          <button class="btn" type="button" id="cancelEdit" hidden>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <p class="foot">Renewal and service buttons open the maker's own website in a new tab. Check the address bar shows the brand's real domain before you sign in or pay. Homekeep does not send reminders yet, so open it to see what is coming up.</p>
+</div>
+
+<script>
+(function(){
+  var LS = 'homekeep.v1';
+  var state = { items: [] };
+  var tab = 'overview', editingId = null, confirmId = null;
+  var docRef = null, sample = null, scanCtl = null;
+
+  var $ = function(s){ return document.querySelector(s); };
+  var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+
+  /* ---------- dates ---------- */
+  function today(){ var d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function parse(s){ if(!s) return null; var p = String(s).split('-').map(Number); if(p.length!==3||p.some(isNaN)) return null; return new Date(p[0], p[1]-1, p[2]); }
+  function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function addMonths(d, n){ var r = new Date(d.getFullYear(), d.getMonth()+n, 1); var last = new Date(r.getFullYear(), r.getMonth()+1, 0).getDate(); r.setDate(Math.min(d.getDate(), last)); return r; }
+  function daysBetween(a, b){ return Math.round((a - b) / 864e5); }
+  function fmtDate(d){ return d.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}); }
+  function fmtMoney(n, cur){
+    if(n == null || n === '' || isNaN(Number(n))) return '';
+    try { return new Intl.NumberFormat('en-IN', {style:'currency', currency: cur || 'INR', maximumFractionDigits: 0}).format(Number(n)); }
+    catch(e){ return '₹' + Number(n); }
+  }
+  var CYCLE = { monthly:1, quarterly:3, yearly:12 };
+  var CYCLE_TXT = { monthly:'month', quarterly:'3 months', yearly:'year' };
+
+  /* ---------- official sites ---------- */
+  var SUBS = [
+    ['netflix','https://www.netflix.com/youraccount'],
+    ['spotify','https://www.spotify.com/account/subscription/'],
+    ['youtube','https://www.youtube.com/paid_memberships'],
+    ['google one','https://one.google.com/settings'],
+    ['google','https://one.google.com/settings'],
+    ['prime','https://www.amazon.in/gp/primecentral'],
+    ['amazon','https://www.amazon.in/gp/primecentral'],
+    ['hotstar','https://www.hotstar.com'],
+    ['jiohotstar','https://www.hotstar.com'],
+    ['sonyliv','https://www.sonyliv.com'],
+    ['zee5','https://www.zee5.com'],
+    ['apple','https://support.apple.com/billing'],
+    ['icloud','https://support.apple.com/billing'],
+    ['microsoft','https://account.microsoft.com/services'],
+    ['adobe','https://account.adobe.com/plans']
+  ];
+  var DEVS = [
+    ['samsung','https://www.samsung.com/in/support/'],
+    ['lg','https://www.lg.com/in/support/'],
+    ['apple','https://support.apple.com/en-in'],
+    ['iphone','https://support.apple.com/en-in'],
+    ['sony','https://www.sony.co.in/electronics/support'],
+    ['dell','https://www.dell.com/support/home/en-in'],
+    ['hp','https://support.hp.com'],
+    ['lenovo','https://support.lenovo.com'],
+    ['asus','https://www.asus.com/in/support/'],
+    ['acer','https://www.acer.com/in-en/support'],
+    ['xiaomi','https://www.mi.com/in/support/'],
+    ['redmi','https://www.mi.com/in/support/'],
+    ['oneplus','https://www.oneplus.in/support'],
+    ['realme','https://www.realme.com/in/support'],
+    ['panasonic','https://www.panasonic.com/in/support.html'],
+    ['whirlpool','https://www.whirlpoolindia.com'],
+    ['bosch','https://www.bosch-home.in'],
+    ['canon','https://www.canon.co.in/support/'],
+    ['daikin','https://www.daikinindia.com'],
+    ['voltas','https://www.voltas.com'],
+    ['godrej','https://www.godrejappliances.com'],
+    ['haier','https://www.haier.com/in/']
+  ];
+  function linkFor(it){
+    if(it.link && /^https:\/\//i.test(it.link)) return { href: it.link, known: true };
+    var hay = ((it.brand||'') + ' ' + (it.name||'')).toLowerCase();
+    var map = it.type === 'subscription' ? SUBS : DEVS;
+    for(var i=0;i<map.length;i++){
+      if(new RegExp('\\b' + map[i][0].replace(/ /g,'\\s+') + '\\b').test(hay)) return { href: map[i][1], known: true };
+    }
+    var q = encodeURIComponent((it.brand || it.name || '') + (it.type === 'device' ? ' official service center India' : ' official account manage subscription'));
+    return { href: 'https://www.google.com/search?q=' + q, known: false };
+  }
+
+  /* ---------- events ---------- */
+  function eventsFor(it){
+    var out = [];
+    if(it.type === 'device'){
+      var base = parse(it.lastService) || parse(it.purchase);
+      if(base && Number(it.interval) > 0) out.push({ it: it, kind: 'service', date: addMonths(base, Number(it.interval)) });
+      if(parse(it.purchase) && Number(it.warranty) > 0) out.push({ it: it, kind: 'warranty', date: addMonths(parse(it.purchase), Number(it.warranty)) });
+    } else {
+      var r = parse(it.renewal);
+      if(r) out.push({ it: it, kind: 'renewal', date: r });
+    }
+    var t = today();
+    return out.map(function(e){ e.days = daysBetween(e.date, t); return e; });
+  }
+  function primary(it){ return eventsFor(it).filter(function(e){ return e.kind !== 'warranty'; })[0] || null; }
+  function status(days){ return days < 0 ? 'late' : days <= 30 ? 'soon' : 'ok'; }
+  function whenText(e){
+    var d = e.days;
+    if(e.kind === 'warranty'){
+      if(d < 0) return 'Warranty ended';
+      if(d === 0) return 'Warranty ends today';
+      return 'Warranty ends in ' + d + (d === 1 ? ' day' : ' days');
+    }
+    if(d === 0) return 'Due today';
+    if(d < 0) return Math.abs(d) + (d === -1 ? ' day' : ' days') + ' overdue';
+    if(d <= 60) return 'In ' + d + (d === 1 ? ' day' : ' days');
+    return 'In ' + Math.round(d / 30.4) + ' months';
+  }
+  function monthly(it){
+    var p = Number(it.price); if(!p) return 0;
+    return p / (CYCLE[it.cycle] || 1);
+  }
+
+  /* ---------- rendering ---------- */
+  var ICON_DEV = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>';
+  var ICON_SUB = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4M4 13a8 8 0 0 0 14.5 4"/><path d="M5.5 3v4h4M18.5 21v-4h-4"/></svg>';
+
+  function rowHtml(e, it){
+    var ev = e, link = linkFor(it), brand = it.brand || it.name;
+    var pillCls = 'none', pill = 'Add a date', dateTxt = '';
+    if(ev){
+      pillCls = ev.kind === 'warranty' ? (ev.days < 0 ? 'none' : 'soon') : status(ev.days);
+      pill = whenText(ev); dateTxt = fmtDate(ev.date);
+    }
+    var meta = [];
+    if(it.type === 'device'){
+      if(it.brand) meta.push(esc(it.brand));
+      var w = eventsFor(it).filter(function(x){ return x.kind === 'warranty'; })[0];
+      if(w) meta.push((w.days < 0 ? 'Warranty ended ' : 'Warranty until ') + fmtDate(w.date));
+      if(it.lastService && parse(it.lastService)) meta.push('Last serviced ' + fmtDate(parse(it.lastService)));
+      if(ev && ev.kind === 'service') meta.push(Number(it.interval) === 12 ? 'Yearly service' : 'Service every ' + it.interval + ' months');
+    } else {
+      if(it.plan) meta.push(esc(it.plan));
+      if(it.price) meta.push(fmtMoney(it.price, it.currency) + ' / ' + (CYCLE_TXT[it.cycle] || 'month'));
+    }
+    var label, kindLabel = ev ? ev.kind : (it.type === 'device' ? 'service' : 'renewal');
+    if(!link.known) label = 'Find official site';
+    else if(kindLabel === 'service') label = 'Book service with ' + esc(brand);
+    else if(kindLabel === 'warranty') label = 'Warranty support: ' + esc(brand);
+    else label = 'Renew with ' + esc(brand);
+    var done = '';
+    if(ev && ev.kind === 'service') done = '<button class="btn" type="button" data-act="serviced" data-id="'+esc(it.id)+'">Mark serviced</button>';
+    if(ev && ev.kind === 'renewal') done = '<button class="btn" type="button" data-act="renewed" data-id="'+esc(it.id)+'">Mark renewed</button>';
+    var del = confirmId === it.id
+      ? '<button class="btn danger" type="button" data-act="del-yes" data-id="'+esc(it.id)+'">Confirm delete</button><button class="btn" type="button" data-act="del-no" data-id="'+esc(it.id)+'">Keep</button>'
+      : '<button class="btn danger" type="button" data-act="del" data-id="'+esc(it.id)+'">Delete</button>';
+    var kindWord = ev && ev.kind === 'warranty' ? ' (warranty)' : '';
+    return '<li class="row">'
+      + '<div class="mark">' + (it.type === 'device' ? ICON_DEV : ICON_SUB) + '</div>'
+      + '<div class="main"><div class="title">' + esc(it.name) + (it.model ? '<span class="mono">' + esc(it.model) + '</span>' : '') + '</div>'
+      + '<div class="sub">' + (meta.join(' · ') || '&nbsp;') + '</div></div>'
+      + '<div class="when"><span class="pill ' + pillCls + '">' + esc(pill) + '</span><span class="date mono">' + esc(dateTxt) + '</span></div>'
+      + '<div class="acts"><a class="btn primary" href="' + esc(link.href) + '" target="_blank" rel="noopener noreferrer">' + label + ' ↗</a>'
+      + done + '<button class="btn" type="button" data-act="edit" data-id="' + esc(it.id) + '">Edit</button>' + del + '</div>'
+      + '</li>';
+  }
+
+  function renderOverview(){
+    var all = [];
+    state.items.forEach(function(it){
+      eventsFor(it).forEach(function(e){
+        if(e.kind === 'warranty'){ if(e.days >= 0 && e.days <= 60) all.push(e); }
+        else if(e.days <= 60) all.push(e);
+      });
+    });
+    all.sort(function(a,b){ return a.days - b.days; });
+    var late = 0, soon = 0;
+    state.items.forEach(function(it){ var p = primary(it); if(p){ if(p.days < 0) late++; else if(p.days <= 30) soon++; } });
+    var subs = state.items.filter(function(i){ return i.type === 'subscription'; });
+    var perMonth = subs.reduce(function(s,i){ return s + monthly(i); }, 0);
+    var html = '<div class="band">'
+      + '<div><div class="k">Overdue</div><div class="v ' + (late ? 'late' : '') + ' mono">' + late + '</div></div>'
+      + '<div><div class="k">Due in 30 days</div><div class="v mono">' + soon + '</div></div>'
+      + '<div><div class="k">Subscriptions</div><div class="v mono">' + fmtMoney(Math.round(perMonth)) + ' <small>/ month</small></div></div>'
+      + '</div>';
+    html += '<div class="sec-h" style="margin:20px 0 10px"><h2>Coming up</h2><span>Next 60 days and anything overdue</span></div>';
+    if(all.length){
+      html += '<ul class="rows">' + all.map(function(e){ return rowHtml(e, e.it); }).join('') + '</ul>';
+    } else if(state.items.length){
+      html += '<ul class="rows"><li class="empty">Nothing is due in the next 60 days.</li></ul>';
+    } else {
+      html += '<ul class="rows"><li class="empty">Nothing here yet. Scan a bill or add a device or subscription to start tracking dates.</li></ul>';
+    }
+    return html;
+  }
+
+  function renderList(type){
+    var items = state.items.filter(function(i){ return i.type === type; });
+    items.sort(function(a,b){
+      var pa = primary(a), pb = primary(b);
+      return (pa ? pa.days : 99999) - (pb ? pb.days : 99999);
+    });
+    var title = type === 'device' ? 'Devices' : 'Subscriptions';
+    var html = '<div class="sec-h" style="margin-bottom:10px"><h2>' + title + '</h2><button class="btn primary" type="button" data-act="new-' + type + '">Add ' + (type === 'device' ? 'a device' : 'a subscription') + '</button></div>';
+    if(!items.length){
+      return html + '<ul class="rows"><li class="empty">No ' + title.toLowerCase() + ' yet. Upload a bill and Claude will fill in the details.</li></ul>';
+    }
+    return html + '<ul class="rows">' + items.map(function(it){ return rowHtml(primary(it), it); }).join('') + '</ul>';
+  }
+
+  function render(){
+    var view = $('#view');
+    var isAdd = tab === 'add';
+    view.hidden = isAdd; $('#v-add').hidden = !isAdd;
+    if(!isAdd) view.innerHTML = tab === 'overview' ? renderOverview() : renderList(tab === 'devices' ? 'device' : 'subscription');
+    document.querySelectorAll('nav [role=tab]').forEach(function(b){ b.setAttribute('aria-selected', String(b.dataset.tab === tab)); });
+    $('#n-devices').textContent = state.items.filter(function(i){ return i.type === 'device'; }).length || '';
+    $('#n-subs').textContent = state.items.filter(function(i){ return i.type === 'subscription'; }).length || '';
+    $('#notice').hidden = !state.items.some(function(i){ return i.example; });
+  }
+
+  /* ---------- persistence ---------- */
+  var writing = false, dirty = false;
+  function setSync(t){ $('#sync').textContent = t; }
+  function persist(){
+    try { localStorage.setItem(LS, JSON.stringify(state)); } catch(e){}
+    dirty = true; flush();
+  }
+  async function flush(){
+    if(!docRef || writing) return;
+    writing = true;
+    try {
+      while(dirty){ dirty = false; await docRef.set({ items: state.items, updatedAt: Date.now() }); }
+      setSync('Saved to your account');
+    } catch(e){ setSync('Saved in this browser only'); }
+    finally { writing = false; }
+  }
+  function id(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  function seed(){
+    var t = today();
+    function off(days){ var d = new Date(t); d.setDate(d.getDate() + days); return iso(d); }
+    return [
+      { id:id(), example:true, type:'device', name:'55 inch 4K TV', brand:'Samsung', model:'EXAMPLE-55U', serial:'', purchase:iso(addMonths(t,-14)), price:52000, warranty:24, interval:12, lastService:'' },
+      { id:id(), example:true, type:'device', name:'1.5 ton split AC', brand:'Daikin', model:'EXAMPLE-AC15', serial:'', purchase:iso(addMonths(t,-23)), price:44500, warranty:36, interval:12, lastService:iso(addMonths(t,-11)) },
+      { id:id(), example:true, type:'device', name:'Front load washing machine', brand:'LG', model:'EXAMPLE-WM8', serial:'', purchase:iso(addMonths(t,-8)), price:36000, warranty:12, interval:12, lastService:'' },
+      { id:id(), example:true, type:'subscription', name:'Netflix', brand:'Netflix', plan:'Premium', price:649, cycle:'monthly', renewal:off(6) },
+      { id:id(), example:true, type:'subscription', name:'Spotify', brand:'Spotify', plan:'Individual', price:139, cycle:'monthly', renewal:off(19) },
+      { id:id(), example:true, type:'subscription', name:'Google One', brand:'Google', plan:'200 GB', price:2100, cycle:'yearly', renewal:off(-3) },
+      { id:id(), example:true, type:'subscription', name:'Amazon Prime', brand:'Amazon', plan:'Annual', price:1499, cycle:'yearly', renewal:off(140) }
+    ];
+  }
+
+  /* ---------- form ---------- */
+  function curType(){ return $('#type-sub').checked ? 'subscription' : 'device'; }
+  function syncType(){
+    var t = curType();
+    document.querySelectorAll('[data-for]').forEach(function(el){ el.hidden = el.dataset.for !== t; });
+    $('#lName').textContent = t === 'device' ? 'Product name' : 'Service name';
+    $('#fName').placeholder = t === 'device' ? '55 inch 4K TV' : 'Netflix';
+    $('#lBrand').textContent = t === 'device' ? 'Brand' : 'Company';
+    $('#fBrand').placeholder = t === 'device' ? 'Samsung' : 'Netflix';
+  }
+  function clearForm(){
+    editingId = null;
+    ['fName','fBrand','fModel','fSerial','fPurchase','fWarranty','fLast','fPlan','fRenewal','fPrice','fLink'].forEach(function(k){ $('#'+k).value = ''; });
+    $('#fInterval').value = '12'; $('#fCycle').value = 'monthly';
+    $('#formTitle').textContent = 'Add an item'; $('#saveBtn').textContent = 'Save item'; $('#cancelEdit').hidden = true;
+    $('#formErr').textContent = '';
+    $('#thumb').hidden = true; $('#bill').value = '';
+    $('#readBill').disabled = !sample;
+    setScan(sample ? 'Choose a bill to read, or fill the form by hand.' : $('#scanStatus').textContent);
+  }
+  function openAdd(type, it){
+    tab = 'add'; clearForm();
+    $(type === 'subscription' ? '#type-sub' : '#type-device').checked = true;
+    syncType();
+    if(it){
+      editingId = it.id; confirmId = null;
+      $('#formTitle').textContent = 'Edit ' + it.name; $('#saveBtn').textContent = 'Save changes'; $('#cancelEdit').hidden = false;
+      $('#fName').value = it.name || ''; $('#fBrand').value = it.brand || ''; $('#fPrice').value = it.price == null ? '' : it.price; $('#fLink').value = it.link || '';
+      if(it.type === 'device'){
+        $('#fModel').value = it.model || ''; $('#fSerial').value = it.serial || ''; $('#fPurchase').value = it.purchase || '';
+        $('#fWarranty').value = it.warranty == null ? '' : it.warranty; $('#fInterval').value = it.interval == null ? '' : it.interval; $('#fLast').value = it.lastService || '';
+      } else {
+        $('#fPlan').value = it.plan || ''; $('#fCycle').value = it.cycle || 'monthly'; $('#fRenewal').value = it.renewal || '';
+      }
+    }
+    render(); window.scrollTo({ top: 0 });
+  }
+  function saveForm(ev){
+    ev.preventDefault();
+    var t = curType(), name = $('#fName').value.trim();
+    var err = $('#formErr');
+    if(!name){ err.textContent = 'Enter a name for this ' + (t === 'device' ? 'product' : 'service') + '.'; $('#fName').focus(); return; }
+    var link = $('#fLink').value.trim();
+    if(link && !/^https:\/\//i.test(link)){ err.textContent = 'The official link must start with https://'; $('#fLink').focus(); return; }
+    var it = { id: editingId || id(), type: t, name: name, brand: $('#fBrand').value.trim(), price: $('#fPrice').value === '' ? null : Number($('#fPrice').value), link: link };
+    if(t === 'device'){
+      it.model = $('#fModel').value.trim(); it.serial = $('#fSerial').value.trim(); it.purchase = $('#fPurchase').value;
+      it.warranty = $('#fWarranty').value === '' ? 0 : Number($('#fWarranty').value);
+      it.interval = $('#fInterval').value === '' ? 0 : Number($('#fInterval').value);
+      it.lastService = $('#fLast').value;
+    } else {
+      it.plan = $('#fPlan').value.trim(); it.cycle = $('#fCycle').value; it.renewal = $('#fRenewal').value;
+    }
+    var old = state.items.filter(function(x){ return x.id === it.id; })[0];
+    if(old && old.currency) it.currency = old.currency;
+    var idx = state.items.findIndex(function(x){ return x.id === it.id; });
+    if(idx >= 0) state.items[idx] = it; else state.items.push(it);
+    persist(); tab = t === 'device' ? 'devices' : 'subs'; clearForm(); render(); window.scrollTo({ top: 0 });
+  }
+
+  /* ---------- bill reading ---------- */
+  function setScan(t, isErr){ var s = $('#scanStatus'); s.textContent = t; s.className = 'status' + (isErr ? ' err' : ''); }
+  var ERR = {
+    not_granted: 'Reading bills needs your permission to use Claude on this page. Reload and allow it, or fill in the form by hand.',
+    sampling_disabled: 'Claude is not available for this account, so bills cannot be read. Fill in the form by hand.',
+    rate_limited: 'Too many requests just now. Wait a moment and try again.',
+    session_expired: 'Your session expired. Sign in again and retry.',
+    image_rejected: 'That image could not be used. Try a clear JPG or PNG under 20 MB.',
+    invalid_json: 'The bill could not be read into fields. Try a sharper photo, or fill the form by hand.',
+    refused: 'That file could not be read as a bill. Try a different photo.',
+    images_unavailable: 'Image upload is not available in this view. Fill in the form by hand.'
+  };
+  function num(v){ var n = Number(v); return v === null || v === '' || v === undefined || isNaN(n) ? '' : n; }
+  function validIso(s){ return /^\d{4}-\d{2}-\d{2}$/.test(s || '') && parse(s) ? s : ''; }
+  function fillFromBill(d){
+    if(!d || typeof d !== 'object') throw { code: 'invalid_json' };
+    var kind = d.kind === 'subscription' ? 'subscription' : 'device';
+    $(kind === 'subscription' ? '#type-sub' : '#type-device').checked = true; syncType();
+    var cur = /^[A-Z]{3}$/.test(d.currency || '') ? d.currency : 'INR';
+    $('#lPrice').textContent = 'Price paid' + (cur === 'INR' ? ' (₹)' : ' (' + cur + ')');
+    $('#fPrice').value = num(d.price);
+    if(kind === 'device'){
+      $('#fName').value = d.name || [d.brand, d.model].filter(Boolean).join(' ');
+      $('#fBrand').value = d.brand || ''; $('#fModel').value = d.model || ''; $('#fSerial').value = d.serial || '';
+      $('#fPurchase').value = validIso(d.purchaseDate);
+      $('#fWarranty').value = num(d.warrantyMonths);
+    } else {
+      $('#fName').value = d.serviceName || d.name || d.brand || '';
+      $('#fBrand').value = d.brand || d.serviceName || ''; $('#fPlan').value = d.plan || '';
+      var cyc = CYCLE[d.billingCycle] ? d.billingCycle : 'monthly';
+      $('#fCycle').value = cyc;
+      var r = validIso(d.nextRenewalDate);
+      if(!r && validIso(d.purchaseDate)){
+        var x = parse(d.purchaseDate); var guard = 0;
+        do { x = addMonths(x, CYCLE[cyc]); guard++; } while(x <= today() && guard < 600);
+        r = iso(x);
+      }
+      $('#fRenewal').value = r;
+    }
+    var conf = ({ high:'Read with high confidence.', medium:'Some fields may be off.', low:'Low confidence in this read.' })[d.confidence] || '';
+    setScan('Details filled in below. ' + conf + ' Check every field against the bill, then save.');
+  }
+  async function readBill(){
+    var f = $('#bill').files[0];
+    if(!f){ setScan('Choose a photo or screenshot of the bill first.', true); return; }
+    if(f.type === 'application/pdf'){ setScan('PDF bills are not supported here. Take a screenshot or photo of the bill and upload that.', true); return; }
+    scanCtl = new AbortController();
+    $('#readBill').disabled = true; $('#stopBill').hidden = false; setScan('Reading the bill. This can take up to a minute…');
+    var prompt = 'You are reading a purchase bill, invoice or subscription receipt, most likely from India. '
+      + 'Reply with only one JSON object with these keys: '
+      + '{"kind":"device" or "subscription","name":product name,"brand":maker or company,"model":model number exactly as printed,"serial":serial number or IMEI if printed,'
+      + '"purchaseDate":"YYYY-MM-DD","price":total amount paid as a number,"currency":"INR" or another ISO code,"warrantyMonths":number,'
+      + '"serviceName":subscription service name,"plan":plan name,"billingCycle":"monthly" or "quarterly" or "yearly","nextRenewalDate":"YYYY-MM-DD","confidence":"high" or "medium" or "low"}. '
+      + 'Use "" or null for anything not printed on the bill. Never guess a model number or serial number; copy it character for character. '
+      + 'Use "device" for physical products and "subscription" for recurring digital services. Today is ' + iso(today()) + '.';
+    try {
+      var data = await sample.json(prompt, { images: f, cache: false, signal: scanCtl.signal });
+      fillFromBill(data);
+    } catch(e){
+      if(e && e.code === 'cancelled') setScan('Stopped.');
+      else setScan(ERR[e && e.code] || 'Something went wrong reading the bill. Try again, or fill the form by hand.', true);
+    } finally { $('#readBill').disabled = !sample; $('#stopBill').hidden = true; scanCtl = null; }
+  }
+
+  /* ---------- events ---------- */
+  document.addEventListener('click', function(ev){
+    var b = ev.target.closest('[data-act],[data-tab]'); if(!b) return;
+    if(b.dataset.tab){ if(b.dataset.tab === 'add') openAdd(curType()); else { tab = b.dataset.tab; confirmId = null; render(); } return; }
+    var act = b.dataset.act, it = state.items.filter(function(x){ return x.id === b.dataset.id; })[0];
+    if(act === 'new-device') return openAdd('device');
+    if(act === 'new-subscription') return openAdd('subscription');
+    if(!it) return;
+    if(act === 'edit') return openAdd(it.type, it);
+    if(act === 'serviced'){ it.lastService = iso(today()); }
+    else if(act === 'renewed'){
+      var m = CYCLE[it.cycle] || 1, d = parse(it.renewal) || today();
+      d = addMonths(d, m); var g = 0; while(d <= today() && g++ < 600) d = addMonths(d, m);
+      it.renewal = iso(d);
+    }
+    else if(act === 'del'){ confirmId = it.id; render(); return; }
+    else if(act === 'del-no'){ confirmId = null; render(); return; }
+    else if(act === 'del-yes'){ state.items = state.items.filter(function(x){ return x.id !== it.id; }); confirmId = null; }
+    persist(); render();
+  });
+  $('#clearExamples').addEventListener('click', function(){ state.items = state.items.filter(function(i){ return !i.example; }); persist(); render(); });
+  $('#itemForm').addEventListener('submit', saveForm);
+  $('#cancelEdit').addEventListener('click', function(){ var t = curType(); clearForm(); tab = t === 'device' ? 'devices' : 'subs'; render(); });
+  document.querySelectorAll('input[name=type]').forEach(function(r){ r.addEventListener('change', syncType); });
+  $('#readBill').addEventListener('click', readBill);
+  $('#stopBill').addEventListener('click', function(){ if(scanCtl) scanCtl.abort(); });
+  $('#bill').addEventListener('change', function(){
+    var f = this.files[0], th = $('#thumb');
+    if(f && f.type.indexOf('image/') === 0){ th.src = URL.createObjectURL(f); th.hidden = false; } else th.hidden = true;
+  });
+
+  /* ---------- boot ---------- */
+  try {
+    var saved = JSON.parse(localStorage.getItem(LS) || 'null');
+    if(saved && Array.isArray(saved.items)) state = saved; else state = { items: seed() };
+  } catch(e){ state = { items: seed() }; }
+  syncType(); render();
+
+  (async function(){
+    if(!(window.claude && window.claude.use)){ setScan('Bill reading is not available here. Fill in the form by hand.', true); return; }
+    try {
+      var res = await Promise.all([window.claude.use('user'), window.claude.use('db')]);
+      var user = res[0], db = res[1];
+      var uid = user ? await user.id() : null;
+      if(db && uid){
+        docRef = db.doc('data/users/' + uid + '/profile');
+        var snap = await docRef.get();
+        if(snap.exists && Array.isArray(snap.data().items)){ state.items = snap.data().items.slice(); render(); }
+        setSync('Saved to your account');
+      }
+    } catch(e){}
+    try {
+      sample = await window.claude.use('sample');
+      var lim = sample ? await sample.limits().catch(function(){ return null; }) : null;
+      if(sample && lim && lim.images){ $('#readBill').disabled = false; setScan('Choose a bill to read, or fill the form by hand.'); }
+      else { sample = null; setScan('Bill reading is not available in this view. You can still add details by hand.', true); }
+    } catch(e){ sample = null; setScan('Bill reading is not available in this view. You can still add details by hand.', true); }
+  })();
+})();
+</script>
+
+</body>
+</html>
